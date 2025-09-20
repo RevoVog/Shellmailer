@@ -48,4 +48,63 @@ echo Folder locked (Explorer will open Control Panel view)
 3) Encrypt for the current user (EFS with cipher) — protects from other local accounts (best option without admin)
 cipher (EFS) encrypts files so only the same Windows user account can read them. Requires NTFS and Windows versions that support EFS (Pro/Enterprise). No admin required for encrypting your own files. Does not protect against someone with admin privileges or if attacker has access to your user account or backups of the EFS keys.
 
+# Encrypt
 
+@echo off
+if "%~1"=="" (
+  echo Usage: %~nx0 "C:\path\to\folder"
+  exit /b 1
+)
+set "F=%~1"
+cipher /e /s:"%F%"
+echo Encrypted (EFS): %F%
+
+
+# Decrypt
+
+cipher /d /s:"C:\path\to\folder"
+echo Decrypted: %F%
+
+
+Notes:
+Must be NTFS (not FAT32).
+If you lose your Windows account/profile or EFS keys, data may be unrecoverable — back up EFS certificate if important.
+
+
+
+4) Change ACLs with icacls — restrict access to current user
+You can remove access for Everyone and grant only the current user. This usually works without admin if you own the folder. It is stronger than attrib, but an Administrator can still change ACLs.
+Example script to give only current user rights:
+
+@echo off
+if "%~1"=="" (
+  echo Usage: %~nx0 "C:\path\to\folder"
+  exit /b 1
+)
+set "F=%~1"
+for /f "tokens=2 delims=\" %%u in ('whoami') do set USER=%%u
+:: replace DOMAIN\USER token with full whoami result
+set WHOAMI=%USER%
+:: reset permissions: remove inheritance and grant full control to current user
+icacls "%F%" /inheritance:r
+icacls "%F%" /grant:r "%username%":(OI)(CI)F
+icacls "%F%" /remove "Everyone"
+echo ACLs updated for %username% on %F%
+
+
+Caveats:
+icacls behavior depends on ownership; if you don't own the folder, you may need admin.
+Administrators can override ACLs.
+
+
+Important security notes (read!)
+None of the above will stop a local Administrator or someone with physical access to the disk from getting the files.
+Hiding (attrib) and CLSID tricks are security through obscurity — fine for casual hiding but not for secrets.
+EFS (cipher) is the best built-in protection without admin if you: use NTFS + keep your user account secure + export EFS certificate for backup.
+If you need real password-protected, cross-machine secure storage, use a proper encryption tool (7-Zip AES, VeraCrypt, BitLocker). Those are outside pure .cmd simplicity and may need additional tools / privileges.
+
+Recommendation
+If you only want to stop casual users: use the attrib or locker script.
+If you want real protection from other local non-admin accounts: use EFS (cipher) or create an encrypted archive (7-Zip) and script that to lock/unlock (7z supports AES and can be driven from a .cmd if 7z is installed). If you want, I can:
+provide a .cmd that uses 7-Zip to create an encrypted archive and delete the original folder (safe, portable), or
+provide a full toggling script (hide + encrypt + ACLs) that tries multiple layers automatically.
