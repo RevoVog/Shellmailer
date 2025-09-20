@@ -1,0 +1,51 @@
+1) Simple hide (attrib) — no admin needed, not secure
+Hides the folder (hidden + system). Anyone who knows how to show hidden/system files can see it.
+Save as hide_folder.cmd:
+
+# Hide
+@echo off
+if "%~1"=="" (
+  echo Usage: %~nx0 "C:\path\to\folder"
+  exit /b 1
+)
+set "F=%~1"
+attrib +h +s "%F%"
+echo Folder hidden: %F%
+
+# Unhide
+attrib -h -s "C:\path\to\folder"
+echo Folder unhidden
+
+
+2) "Locker" rename trick — hides and prevents casual browsing
+This is the classic batch locker that renames folder to a Control Panel CLSID so Explorer opens it as Control Panel instead of showing contents. Not secure — anyone can revert the name or list files.
+Save as locker.cmd:
+
+@echo off
+set "F=%~1"
+if "%F%"=="" (
+  echo Usage: %~nx0 "C:\path\to\MyFolder"
+  exit /b 1
+)
+if not exist "%F%" (
+  echo Folder not found: %F%
+  exit /b 1
+)
+:: If folder name already contains CLSID, restore it
+echo %~nxF | findstr /i "{21EC2020-3AEA-1069-A2DD-08002B30309D}" >nul
+if %errorlevel%==0 (
+  ren "%F%" "%~nF"
+  echo Folder unlocked (restored name)
+  exit /b 0
+)
+:: Lock it
+ren "%F%" "%~nxF.{21EC2020-3AEA-1069-A2DD-08002B30309D}"
+echo Folder locked (Explorer will open Control Panel view)
+
+# Usage: locker.cmd "C:\path\to\MyFolder"
+
+
+3) Encrypt for the current user (EFS with cipher) — protects from other local accounts (best option without admin)
+cipher (EFS) encrypts files so only the same Windows user account can read them. Requires NTFS and Windows versions that support EFS (Pro/Enterprise). No admin required for encrypting your own files. Does not protect against someone with admin privileges or if attacker has access to your user account or backups of the EFS keys.
+
+
